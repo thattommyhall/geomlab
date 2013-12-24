@@ -1,11 +1,14 @@
 (ns escher.core)
-
 (def canvas (.getElementById js/document "frame"))
 (def context (.getContext canvas "2d"))
 
 (def frame {:origin [0 0]
             :e1 [(.-width canvas) 0]
             :e2 [0 (.-height canvas)]})
+
+(def frame1 {:origin [50 50]
+             :e1 [0 300]
+             :e2 [200 0]})
 
 (defn draw-line [[x1 y1] [x2 y2] context]
   (doto context
@@ -15,33 +18,116 @@
   (.stroke context))
 
 (defn load-image [image-name callback]
-  (let [image (js/Image.)]
+  (let [image (js/Image.)
+        canvas (.createElement js/document "canvas")
+        context (.getContext canvas "2d")
+        canvas-size 400]
+    (set! (.-width canvas) canvas-size)
+    (set! (.-height canvas) canvas-size)
     (set! (.-src image) (str "image/" image-name))
-    (set! (.-onload image) #(callback image))))
+    (set! (.-onload image)
+          #(do (.drawImage context image 0 0 canvas-size canvas-size)
+               (callback canvas)))))
+
+(defn scale-vec [[x y] s]
+  [(* x s) (* y s)])
+
+(defn add-vec [[x1 y1] [x2 y2]]
+  [(+ x1 x2) (+ y1 y2)])
+
+(defn sub-vec [[x1 y1] [x2 y2]]
+  [(- x1 x2) (- y1 y2)])
+
+(defn frame-coord-map
+  [{:keys [origin e1 e2]}]
+  (fn [[x y]]
+    (add-vec origin
+             (add-vec (scale-vec e1 x)
+                      (scale-vec e2 y)))))
+
+(defn segment-painter [segment-list context]
+  (fn [frame]
+    (let [m (frame-coord-map frame)]
+      (doseq [[start end] segment-list]
+        (draw-line (m start) (m end) context)))))
+
+(defn transform-picture [p origin e1 e2]
+  (fn [frame]
+    (let [map (frame-coord-map frame)
+          new-origin (map origin)]
+      (p {:origin new-origin
+          :e1 (sub-vec (map e1) new-origin)
+          :e2 (sub-vec (map e2) new-origin)}))))
+
+(defn flip-vert [p]
+  (transform-picture p [0 1] [1 1] [0 0]))
+
+(defn flip-horiz [p]
+  (transform-picture p [1 0] [0 0] [1 1]))
+
+(defn rot [p]
+  (transform-picture p [1 0] [1 1] [0 0]))
+
+(defn rot180 [p]
+  (rot (rot p)))
+
+(defn rot270 [p]
+  (rot (rot (rot p))))
+
+(defn beside [p1 p2]
+  (let [split [0.5 0]
+        left (transform-picture p1 [0 0] split [0 1])
+        right (transform-picture p2 split [1 0] [0.5 1])]
+    (fn [frame]
+      (left frame)
+      (right frame))))
+
+(defn below [p1 p2]
+  (rot270 (beside (rot p2)
+                  (rot p1))))
 
 (defn image-painter [image-name context]
-  (fn [{:keys [origin e1 e2]}]
-    (let [[ox oy] origin
-          [e1x e1y] e1
-          [e2x e2y] e2]
-      (load-image image-name
-                  (fn [image]
-                    (let [width (.-width image)
-                          height (.-height image)]
-                      (doto context
-                        (.save)
-                        (.translate ox oy)
-                        (.transform (/ e1x width)
-                                    (/ e1y height)
-                                    (/ e2x width)
-                                    (/ e2y height)
-                                    0 0)
-                        (.drawImage image 0 0)
-                        (.restore))))))))
+  (fn [{[ox oy] :origin
+        [e1x e1y] :e1
+        [e2x e2y] :e2}]
+    (load-image image-name
+                (fn [image]
+                  (let [width (.-width image)
+                        height (.-height image)]
+                    (.save context)
+                    (.translate context ox oy)
+                    (.transform context
+                                (/ e1x width)
+                                (/ e1y height)
+                                (/ e2x width)
+                                (/ e2y height)
+                                0
+                                0)
+                    (.drawImage context image 0 0)
+                    (.restore context))))))
 
-((image-painter "man.png" context) frame)
-(draw-line [0 100] [100 0] context)
-(defn foo [a b]
-  (+ a b))
+(def man (image-painter "man.png" context))
+(def woman (image-painter "woman.png" context))
+(def tree (image-painter "tree.png" context))
 
-(. js/console (log "Hello world!" (foo 1 2)))
+(defn path [& veclist]
+  (segment-painter (partition 2 1 veclist) context))
+
+(def p (segment-painter [[[0 0] [0.5 0]]
+                         [[0.5] [0.5 0.5]]
+                         [[0.5 0.5] [0 0.5]]
+                         [[0 0.5] [0 0]]
+                         [[0 0] [0 0.5]]]
+                        context))
+
+(def box (path [0 0] [0 1] [1 1] [1 0] [0 0]))
+
+(defn draw [picture]
+  (picture frame))
+
+(def f {:origin [100 50]
+        :e1 [200 100]
+        :e2 [100 200]})
+
+(draw (below (beside man (rot man))
+             (beside (rot180 man) (rot270 man))))
