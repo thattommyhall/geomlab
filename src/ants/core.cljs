@@ -75,13 +75,14 @@
 (defn rot270 [p]
   (rot (rot (rot p))))
 
-(defn beside [p1 p2]
-  (let [split [0.5 0]
-        left (transform-picture p1 [0 0] split [0 1])
-        right (transform-picture p2 split [1 0] [0.5 1])]
+(defn beside [& ps]
+  (let [
+        division (float (/ 1 (count ps)))
+        x-divisions  (take 3 (iterate #(+ division %) 0)) 
+        transform-beside (fn [thing index ] (transform-picture thing [(* index division) 0] [(* (inc index) division) 0] [(* index division) 1]))
+        transformed (map transform-beside ps (range))]
     (fn [frame]
-      (left frame)
-      (right frame))))
+      (doseq [t transformed] (t frame)))))
 
 (defn below [p1 p2]
   (rot270 (beside (rot p2)
@@ -138,8 +139,8 @@
   (beside p (below p p)))
 
 (defn manrow [n]
-  (if (= n 0)
-    man
-    (beside man (manrow (- n 1)))))
+  (apply beside (repeat n man)))
+
+;;(draw (beside man man man man))
 
 (draw (manrow 5))
