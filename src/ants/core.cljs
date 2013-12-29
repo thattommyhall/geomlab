@@ -1,4 +1,5 @@
 (ns escher.core)
+
 (def canvas (.getElementById js/document "frame"))
 (def context (.getContext canvas "2d"))
 
@@ -125,9 +126,20 @@
 (defn draw [picture]
   (picture frame))
 
-(def f {:origin [100 50]
-        :e1 [200 100]
-        :e2 [100 200]})
+(def test-frame {:origin [100 50]
+                 :e1 [200 100]
+                 :e2 [100 200]})
 
-(draw (below (beside man (rot man))
-             (beside (rot180 man) (rot270 man))))
+(defn g [p1 p2]
+  (below (beside p1 p2)
+         (beside p2 p1)))
+
+(defn f [p]
+  (beside p (below p p)))
+
+(defn manrow [n]
+  (if (= n 0)
+    man
+    (beside man (manrow (- n 1)))))
+
+(draw (manrow 5))
