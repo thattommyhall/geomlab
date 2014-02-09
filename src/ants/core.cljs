@@ -46,22 +46,26 @@
   (rot (rot (rot p))))
 
 (defn beside [left right]
-  (let [l-height (.-height left)
+  (let [canvas (.createElement js/document "canvas")
+        context (.getContext canvas "2d")
+        l-height (.-height left)
         l-width (.-width left)
         r-height (.-height right)
         r-width (.-width right)
-        multiple (/ r-height l-height)
-        l-height (* l-height multiple)
-        l-width (* l-width multiple)
-        canvas (.createElement js/document "canvas")
-        context (.getContext canvas "2d")
-        canvas-width (+ l-width r-width)
-        canvas-height r-height]
+        biggest (max l-height r-height)
+        smallest (min l-height r-height)
+        multiple (/ biggest smallest)
+        new-l-height (if (= l-height smallest) (* l-height multiple) l-height)
+        new-l-width (if (= l-height smallest) (* l-width multiple) l-width)
+        new-r-height (if (= r-height smallest) (* r-height multiple) r-height)
+        new-r-width (if (= r-height smallest) (* r-width multiple) r-width)
+        canvas-width (+ new-l-width new-r-width)
+        canvas-height biggest]
     (set! (.-width canvas) canvas-width)
     (set! (.-height canvas) canvas-height)
     (doto context
-      (.drawImage left 0 0 l-width l-height)
-      (.drawImage right l-width 0 r-width r-height))
+      (.drawImage left 0 0 new-l-width new-l-height)
+      (.drawImage right new-l-width 0 new-r-width new-r-height))
     canvas))
 
 (defn below [p1 p2]
@@ -73,7 +77,14 @@
 (def tree (image "tree.png"))
 
 (defn draw [picture]
-  (.drawImage context picture 0 0))
+  (let [pic-width (.-width picture)
+        pic-height (.-height picture)
+        canvas-width (.-width canvas)
+        canvas-height (.-height canvas)
+        width-* (/ canvas-width pic-width)
+        height-* (/ canvas-height pic-height)
+        multiple (min width-* height-*)]
+    (.drawImage context picture 0 0 (* pic-width multiple) (* pic-height multiple))))
 
 (defn manstack [n]
   (if (= n 0)
