@@ -109,5 +109,7 @@
                        (below man tree)))
 
 (js/setTimeout
- #(draw (beside (left) (right)))
+ #(draw (below (beside ( beside (left) (right))
+                        (manstack 3))
+               (manrow 11)))
  500)
