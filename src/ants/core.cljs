@@ -30,23 +30,9 @@
                (callback canvas)))))
 
 (defn image [image-name]
-  (let [image (js/Image.)
-        canvas (.createElement js/document "canvas")
-        context (.getContext canvas "2d")]
+  (let [image (js/Image.)]
     (set! (.-src image) (str "image/" image-name))
-    (set! (.-onload image)
-          #(do (set! (.-width canvas) (.-width image))
-               (set! (.-height canvas) (.-height image))
-               (.drawImage context image 0 0)
-               ))
-    canvas))
-
-;; (defn flip-vert [p]
-;;   (transform-picture p [0 1] [1 1] [0 0]))
-
-;; (defn flip-horiz [p]
-;;   (transform-picture p [1 0] [0 0] [1 1]))
-
+    image))
 
 (def PI (.-PI js/Math))
 
@@ -68,26 +54,6 @@
 
 (defn rot270 [p]
   (rot (rot (rot p))))
-
-(defn image-painter [image-name context]
-  (fn [{[ox oy] :origin
-        [e1x e1y] :e1
-        [e2x e2y] :e2}]
-    (load-image image-name
-                (fn [image]
-                  (let [width (.-width image)
-                        height (.-height image)]
-                    (.save context)
-                    (.translate context ox oy)
-                    (.transform context
-                                (/ e1x width)
-                                (/ e1y height)
-                                (/ e2x width)
-                                (/ e2y height)
-                                0
-                                0)
-                    (.drawImage context image 0 0)
-                    (.restore context))))))
 
 (defn beside [left right]
   (let [l-height (.-height left)
