@@ -19,16 +19,6 @@
 (defn get-context [canvas]
   (.getContext canvas "2d"))
 
-(defn load-image [image-name callback]
-  (let [image (js/Image.)
-        canvas (new-canvas 400 400)
-        context (get-context canvas)
-        canvas-size 400]
-    (set! (.-src image) (str "image/" image-name))
-    (set! (.-onload image)
-          #(do (.drawImage context image 0 0 canvas-size canvas-size)
-               (callback canvas)))))
-
 (defn image [image-name]
   (let [image (js/Image.)]
     (set! (.-src image) (str "image/" image-name))
@@ -99,15 +89,12 @@
   (.log js/console o))
 
 (js/setTimeout
- #(do
-    (draw (beside (below (beside (below (beside (below man
-                                                        woman)
-                                                man)
-                                        (beside woman tree))
-                                 (beside (below (below man woman)
-                                                woman)
-                                         (below man tree)))
-                          (manrow 5))
-                  (manstack 2))))
- 500
- )
+ #(draw (beside (below (beside (below (beside (below man
+                                                     woman)
+                                              man)
+                                      (beside woman tree))
+                               (beside (below (below man woman)
+                                              woman)
+                                       (below man tree)))
+                       (manrow 5))
+                (manstack 2))) 500)
