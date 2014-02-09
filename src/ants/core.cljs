@@ -88,13 +88,15 @@
 (defn log [o]
   (.log js/console o))
 
+(defn left [] (below (beside (below man
+                                    woman)
+                             man)
+                     (beside woman tree)))
+
+(defn right [] (beside (below (below man woman)
+                              woman)
+                       (below man tree)))
+
 (js/setTimeout
- #(draw (beside (below (beside (below (beside (below man
-                                                     woman)
-                                              man)
-                                      (beside woman tree))
-                               (beside (below (below man woman)
-                                              woman)
-                                       (below man tree)))
-                       (manrow 5))
-                (manstack 2))) 500)
+ #(draw (beside (left) (right)))
+ 500)
