@@ -7,85 +7,67 @@
             :e1 [(.-width canvas) 0]
             :e2 [0 (.-height canvas)]})
 
-(def frame1 {:origin [50 50]
-             :e1 [0 300]
-             :e2 [200 0]})
+(defn new-canvas
+  ([width height]
+     (let [canvas
+           (.createElement js/document "canvas")]
+       (set! (.-width canvas) width)
+       (set! (.-height canvas) height)
+       canvas))
+  ([] (new-canvas 0 0)))
 
-(defn draw-line [[x1 y1] [x2 y2] context]
-  (doto context
-    (.moveTo x1 y1)
-    (.lineTo x2 y2))
-  (set! (.-strokeStyle context) "#000" )
-  (.stroke context))
+(defn get-context [canvas]
+  (.getContext canvas "2d"))
 
 (defn load-image [image-name callback]
   (let [image (js/Image.)
-        canvas (.createElement js/document "canvas")
-        context (.getContext canvas "2d")
+        canvas (new-canvas 400 400)
+        context (get-context canvas)
         canvas-size 400]
-    (set! (.-width canvas) canvas-size)
-    (set! (.-height canvas) canvas-size)
     (set! (.-src image) (str "image/" image-name))
     (set! (.-onload image)
           #(do (.drawImage context image 0 0 canvas-size canvas-size)
                (callback canvas)))))
 
-(defn scale-vec [[x y] s]
-  [(* x s) (* y s)])
+(defn image [image-name]
+  (let [image (js/Image.)
+        canvas (.createElement js/document "canvas")
+        context (.getContext canvas "2d")]
+    (set! (.-src image) (str "image/" image-name))
+    (set! (.-onload image)
+          #(do (set! (.-width canvas) (.-width image))
+               (set! (.-height canvas) (.-height image))
+               (.drawImage context image 0 0)
+               ))
+    canvas))
 
-(defn add-vec [[x1 y1] [x2 y2]]
-  [(+ x1 x2) (+ y1 y2)])
+;; (defn flip-vert [p]
+;;   (transform-picture p [0 1] [1 1] [0 0]))
 
-(defn sub-vec [[x1 y1] [x2 y2]]
-  [(- x1 x2) (- y1 y2)])
+;; (defn flip-horiz [p]
+;;   (transform-picture p [1 0] [0 0] [1 1]))
 
-(defn frame-coord-map
-  [{:keys [origin e1 e2]}]
-  (fn [[x y]]
-    (add-vec origin
-             (add-vec (scale-vec e1 x)
-                      (scale-vec e2 y)))))
 
-(defn segment-painter [segment-list context]
-  (fn [frame]
-    (let [m (frame-coord-map frame)]
-      (doseq [[start end] segment-list]
-        (draw-line (m start) (m end) context)))))
+(def PI (.-PI js/Math))
 
-(defn transform-picture [p origin e1 e2]
-  (fn [frame]
-    (let [map (frame-coord-map frame)
-          new-origin (map origin)]
-      (p {:origin new-origin
-          :e1 (sub-vec (map e1) new-origin)
-          :e2 (sub-vec (map e2) new-origin)}))))
+(defn to-rad [degree]
+  (* PI (/ degree 180)))
 
-(defn flip-vert [p]
-  (transform-picture p [0 1] [1 1] [0 0]))
-
-(defn flip-horiz [p]
-  (transform-picture p [1 0] [0 0] [1 1]))
-
-(defn rot [p]
-  (transform-picture p [1 0] [1 1] [0 0]))
+(defn rot [im]
+  (let [width (.-width im)
+        height (.-height im)
+        canvas (new-canvas height width)
+        context (get-context canvas)]
+    (.translate context height 0)
+    (.rotate context (to-rad 90))
+    (.drawImage context im 0 0 width height)
+    canvas))
 
 (defn rot180 [p]
   (rot (rot p)))
 
 (defn rot270 [p]
   (rot (rot (rot p))))
-
-(defn beside [p1 p2]
-  (let [split [0.5 0]
-        left (transform-picture p1 [0 0] split [0 1])
-        right (transform-picture p2 split [1 0] [0.5 1])]
-    (fn [frame]
-      (left frame)
-      (right frame))))
-
-(defn below [p1 p2]
-  (rot270 (beside (rot p2)
-                  (rot p1))))
 
 (defn image-painter [image-name context]
   (fn [{[ox oy] :origin
@@ -107,39 +89,59 @@
                     (.drawImage context image 0 0)
                     (.restore context))))))
 
-(def man (image-painter "man.png" context))
-(def woman (image-painter "woman.png" context))
-(def tree (image-painter "tree.png" context))
+(defn beside [left right]
+  (let [l-height (.-height left)
+        l-width (.-width left)
+        r-height (.-height right)
+        r-width (.-width right)
+        multiple (/ r-height l-height)
+        l-height (* l-height multiple)
+        l-width (* l-width multiple)
+        canvas (.createElement js/document "canvas")
+        context (.getContext canvas "2d")
+        canvas-width (+ l-width r-width)
+        canvas-height r-height]
+    (set! (.-width canvas) canvas-width)
+    (set! (.-height canvas) canvas-height)
+    (doto context
+      (.drawImage left 0 0 l-width l-height)
+      (.drawImage right l-width 0 r-width r-height))
+    canvas))
 
-(defn path [& veclist]
-  (segment-painter (partition 2 1 veclist) context))
+(defn below [p1 p2]
+  (rot270 (beside (rot p2)
+                  (rot p1))))
 
-(def p (segment-painter [[[0 0] [0.5 0]]
-                         [[0.5] [0.5 0.5]]
-                         [[0.5 0.5] [0 0.5]]
-                         [[0 0.5] [0 0]]
-                         [[0 0] [0 0.5]]]
-                        context))
-
-(def box (path [0 0] [0 1] [1 1] [1 0] [0 0]))
+(def man (image "man.png"))
+(def woman (image "woman.png"))
+(def tree (image "tree.png"))
 
 (defn draw [picture]
-  (picture frame))
+  (.drawImage context picture 0 0))
 
-(def test-frame {:origin [100 50]
-                 :e1 [200 100]
-                 :e2 [100 200]})
-
-(defn g [p1 p2]
-  (below (beside p1 p2)
-         (beside p2 p1)))
-
-(defn f [p]
-  (beside p (below p p)))
+(defn manstack [n]
+  (if (= n 0)
+    man
+    (below man (manstack (- n 1)))))
 
 (defn manrow [n]
   (if (= n 0)
     man
     (beside man (manrow (- n 1)))))
 
-(draw (manrow 5))
+(defn log [o]
+  (.log js/console o))
+
+(js/setTimeout
+ #(do
+    (draw (beside (below (beside (below (beside (below man
+                                                        woman)
+                                                man)
+                                        (beside woman tree))
+                                 (beside (below (below man woman)
+                                                woman)
+                                         (below man tree)))
+                          (manrow 5))
+                  (manstack 2))))
+ 500
+ )
